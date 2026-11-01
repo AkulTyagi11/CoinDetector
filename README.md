@@ -13,13 +13,19 @@ Designed specifically for **Indian Rupee (INR)** coins (**₹1, ₹2, ₹5, ₹1
 
 ## 📸 Key Features
 
+- **🔴 Real-World Wood Grain & Ambient Lighting Robustness:**
+  - Standard Hough Transform often fails on textured backgrounds (desks, wood grain tables), producing dozens of false positive circles.
+  - Our **Adaptive Illumination Normalization (Morphological Top-Hat / Black-Hat)** removes non-uniform lighting gradients and wood streaks before detection.
+  - **Circumferential Edge Coherence Verification** ensures only closed circular physical boundaries are recognized, rejecting wood knots and background scratches.
+- **🪙 Multi-Series Indian Rupee (INR) Support:**
+  - Accurately classifies both the **2011/2019 "New ₹ Symbol" Series** (20mm ₹1, 23/25mm ₹2, 23mm ₹5, 27mm ₹10) and earlier circulating coins like the **2007 "Hastamudra / Thumbs-Up" Series** (25mm ₹1 with smooth field vs 25mm ₹2 with dense floral motifs).
 - **🔴 Live Camera Detection:**
   - Browser WebRTC live camera stream (`navigator.mediaDevices.getUserMedia`) with multi-camera selector.
   - Native OpenCV backend MJPEG video stream (`/video_feed`).
 - **💰 Total Monetary Value & Denomination Breakdown:**
-  - Automatically calculates the sum in Indian Rupees (e.g. `Total: ₹43`).
+  - Automatically calculates the sum in Indian Rupees (e.g. `Total: ₹17`).
   - Itemized count cards for **₹1, ₹2, ₹5, ₹10, and ₹20** coins.
-  - Itemized table detailing each coin's center `(X, Y)`, radius in pixels, estimated diameter in mm, color tone, denomination, and confidence.
+  - Interactive table allowing users to click any coin's badge to toggle or adjust denomination.
 - **🔬 Multi-Algorithm Detection Engine:**
   - **Hough Circle Transform (`cv2.HoughCircles`):** 2-1 gradient voting method for circular rims.
   - **Marker-Controlled Watershed Segmentation (`cv2.watershed`):** Euclidean distance transform separates touching and overlapping coins.

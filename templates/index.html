@@ -102,9 +102,10 @@
           <div class="sample-bar">
             <span>Quick Samples:</span>
             <div class="sample-pills">
+              <button class="sample-pill" style="border-color:var(--accent-gold); color:var(--accent-gold); font-weight:700;" data-file="sample_real_user.jpg">⭐ Real Example (₹17)</button>
               <button class="sample-pill" data-file="sample_mix.jpg">Sample 1: ₹33 Mixed</button>
               <button class="sample-pill" data-file="sample_scattered.jpg">Sample 2: ₹37 Scattered</button>
-              <button class="sample-pill" data-file="sample_touching.jpg">Sample 3: ₹23 Touching (Watershed)</button>
+              <button class="sample-pill" data-file="sample_touching.jpg">Sample 3: ₹23 Touching</button>
             </div>
           </div>
         </div>
@@ -211,9 +212,9 @@
                 <span>Method</span>
               </label>
               <select id="methodSelect" class="select-input">
-                <option value="hybrid" selected>Hybrid Ensemble (Recommended)</option>
-                <option value="hough">Hough Circle Transform</option>
-                <option value="contour">Contour &amp; Watershed</option>
+                <option value="adaptive" selected>Adaptive Normalization (Robust for Wood/Desks)</option>
+                <option value="hybrid">Hybrid Ensemble</option>
+                <option value="hough">Masked Hough Circles</option>
               </select>
             </div>
 

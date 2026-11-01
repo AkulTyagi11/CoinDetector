@@ -161,6 +161,7 @@ CoinDetector_CV_Project/
 
 | Test Dataset | Ground Truth Coins | Detected Coins | Ground Truth Total | Calculated Total | Accuracy (%) |
 |:---|:---:|:---:|:---:|:---:|:---:|
+| **Real-World Photo (`sample_real_user.jpg` on wood table)** | **6 coins (3x ₹1, 2x ₹2, 1x ₹10)** | **6** | **₹17** | **₹17** | **100%** |
 | `sample_mix.jpg` | 6 coins (2x ₹10, 2x ₹5, 1x ₹2, 1x ₹1) | 6 | ₹33 | ₹33 | **100%** |
 | `sample_scattered.jpg` | 9 coins (2x ₹10, 2x ₹5, 2x ₹2, 3x ₹1) | 9 | ₹37 | ₹37 | **100%** |
 | `sample_touching.jpg` | 5 coins (1x ₹10, 2x ₹5, 1x ₹2, 1x ₹1) | 5 | ₹23 | ₹23 | **100%** |

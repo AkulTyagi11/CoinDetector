@@ -27,8 +27,8 @@ class CoinDetectorApp {
     this.loadCameraDevices();
     this.initAudio();
 
-    // Auto-load Sample 1 initially so user sees immediate results
-    this.loadSample("sample_mix.jpg");
+    // Auto-load Real User Sample initially so user sees immediate accurate results
+    this.loadSample("sample_real_user.jpg");
   }
 
   initElements() {
@@ -511,7 +511,16 @@ class CoinDetectorApp {
       return;
     }
 
-    coins.forEach(coin => {
+    const denomOrder = [1, 2, 5, 10, 20];
+    const denomColors = {
+      1: "#00bfff",
+      2: "#7b68ee",
+      5: "#ffd700",
+      10: "#ff8e2a",
+      20: "#e632b4"
+    };
+
+    coins.forEach((coin, idx) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td style="font-weight:700;">#${coin.id}</td>
@@ -520,9 +529,9 @@ class CoinDetectorApp {
         <td style="font-weight:600; color:var(--accent-cyan);">${coin.diameter_mm} mm</td>
         <td>${coin.color_tone}</td>
         <td>
-          <span class="coin-badge" style="background-color:${coin.display_color_hex};">
-            ${coin.denomination_str}
-          </span>
+          <button class="coin-badge-btn" data-coin-idx="${idx}" style="background-color:${coin.display_color_hex || denomColors[coin.denomination] || '#00e5ff'}; border:none; border-radius:4px; padding:0.2rem 0.55rem; color:#fff; font-weight:700; cursor:pointer;" title="Click to change denomination">
+            ${coin.denomination_str || ('₹' + coin.denomination)}
+          </button>
         </td>
         <td>
           <div style="background:rgba(255,255,255,0.1); border-radius:4px; height:8px; width:70px; overflow:hidden;">
@@ -531,6 +540,40 @@ class CoinDetectorApp {
         </td>
       `;
       this.coinsTableBody.appendChild(tr);
+    });
+
+    // Event listener for manual denomination toggle
+    this.coinsTableBody.querySelectorAll(".coin-badge-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const coinIdx = parseInt(e.target.dataset.coinIdx, 10);
+        if (this.lastCoins && this.lastCoins[coinIdx]) {
+          const currentDenom = this.lastCoins[coinIdx].denomination;
+          const nextIdx = (denomOrder.indexOf(currentDenom) + 1) % denomOrder.length;
+          const nextDenom = denomOrder[nextIdx];
+
+          this.lastCoins[coinIdx].denomination = nextDenom;
+          this.lastCoins[coinIdx].denomination_str = `₹${nextDenom}`;
+          this.lastCoins[coinIdx].display_color_hex = denomColors[nextDenom];
+
+          // Recalculate summary totals
+          let newTotal = 0;
+          const newBreakdown = { 1: 0, 2: 0, 5: 0, 10: 0, 20: 0 };
+          this.lastCoins.forEach(c => {
+            newTotal += c.denomination;
+            newBreakdown[c.denomination] = (newBreakdown[c.denomination] || 0) + 1;
+          });
+
+          this.lastSummary.total_amount = newTotal;
+          this.lastSummary.breakdown = newBreakdown;
+
+          this.statTotalAmount.textContent = `₹${newTotal}`;
+          for (const [denom, countEl] of Object.entries(this.denomCounts)) {
+            if (countEl) countEl.textContent = newBreakdown[denom] || 0;
+          }
+
+          this.renderCoinsTable(this.lastCoins);
+        }
+      });
     });
   }
 
