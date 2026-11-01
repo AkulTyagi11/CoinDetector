@@ -31,6 +31,17 @@ def decode_base64_image(b64_string: str) -> Optional[np.ndarray]:
         img_bytes = base64.b64decode(b64_string)
         nparr = np.frombuffer(img_bytes, np.uint8)
         img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img_bgr is not None:
+            try:
+                from PIL import Image, ImageOps
+                import io
+                pil_img = Image.open(io.BytesIO(img_bytes))
+                transposed = ImageOps.exif_transpose(pil_img)
+                rgb = np.array(transposed)
+                if len(rgb.shape) == 3 and rgb.shape[2] == 3:
+                    img_bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            except Exception:
+                pass
         return img_bgr
     except Exception as e:
         print(f"Error decoding base64 image: {e}")
@@ -149,10 +160,22 @@ def upload_image():
     if file.filename == "":
         return jsonify({"success": False, "error": "Empty filename"}), 400
 
-    file_bytes = np.frombuffer(file.read(), np.uint8)
-    img_bgr = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+    file_bytes = file.read()
+    nparr = np.frombuffer(file_bytes, np.uint8)
+    img_bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if img_bgr is None:
         return jsonify({"success": False, "error": "Invalid image format"}), 400
+
+    try:
+        from PIL import Image, ImageOps
+        import io
+        pil_img = Image.open(io.BytesIO(file_bytes))
+        transposed = ImageOps.exif_transpose(pil_img)
+        rgb = np.array(transposed)
+        if len(rgb.shape) == 3 and rgb.shape[2] == 3:
+            img_bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    except Exception:
+        pass
 
     params_raw = request.form.get("params", "{}")
     try:
@@ -184,7 +207,7 @@ def load_sample(filename: str):
     if img_bgr is None:
         return jsonify({"success": False, "error": "Failed to read sample image"}), 500
 
-    method = request.args.get("method", "hybrid")
+    method = request.args.get("method", "adaptive")
     cv_params = dict(DEFAULT_CV_PARAMS)
     cv_params["method"] = method
 

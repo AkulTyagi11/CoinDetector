@@ -65,6 +65,19 @@
         <!-- Main Display Canvas -->
         <div class="feed-container" id="feedContainer">
           <canvas id="canvasFeed"></canvas>
+          
+          <!-- Animated Laser Scanning Overlay -->
+          <div class="scan-overlay" id="scanOverlay">
+            <div class="scan-shroud"></div>
+            <div class="scan-line"></div>
+          </div>
+
+          <!-- Step-by-Step Process Ticker -->
+          <div class="cv-status-ticker" id="cvStatusTicker">
+            <div class="spinner"></div>
+            <span id="tickerText">Analyzing Frame...</span>
+          </div>
+
           <div class="feed-placeholder" id="feedPlaceholder">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>
             <p>Click <strong>Start Camera</strong> or select a <strong>Sample Image</strong> below to begin real-time detection.</p>
@@ -96,16 +109,20 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               Capture Still
             </button>
+            <button id="btnReplayAnim" class="btn btn-accent" title="Watch Step-by-Step Detection Animation">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Replay Animation
+            </button>
           </div>
 
           <!-- Quick Samples Bar -->
           <div class="sample-bar">
             <span>Quick Samples:</span>
             <div class="sample-pills">
-              <button class="sample-pill" style="border-color:var(--accent-gold); color:var(--accent-gold); font-weight:700;" data-file="sample_real_user.jpg">⭐ Real Example (₹17)</button>
-              <button class="sample-pill" data-file="sample_mix.jpg">Sample 1: ₹33 Mixed</button>
-              <button class="sample-pill" data-file="sample_scattered.jpg">Sample 2: ₹37 Scattered</button>
-              <button class="sample-pill" data-file="sample_touching.jpg">Sample 3: ₹23 Touching</button>
+              <button class="sample-pill active" data-file="sample_real_user.jpg">⭐ Sample 1: Real Wood Table (₹17)</button>
+              <button class="sample-pill" data-file="sample_mix.jpg">Sample 2: Mixed Coins (₹33)</button>
+              <button class="sample-pill" data-file="sample_scattered.jpg">Sample 3: Scattered Coins (₹37)</button>
+              <button class="sample-pill" data-file="sample_touching.jpg">Sample 4: Touching Coins (₹23)</button>
             </div>
           </div>
         </div>

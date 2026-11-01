@@ -1,13 +1,13 @@
 /**
  * Automated Coin Detection and Counting Using OpenCV
  * Frontend Client Controller: WebRTC Camera, Parameter Tuning,
- * Interactive Calibration, and Real-Time Dashboard Rendering.
+ * Interactive Calibration, and Step-by-Step Detection Animation.
  */
 
 class CoinDetectorApp {
   constructor() {
     // State
-    this.activeMode = "webcam"; // 'webcam', 'upload', 'backend'
+    this.activeMode = "webcam";
     this.isStreaming = false;
     this.stream = null;
     this.processingFrame = false;
@@ -16,10 +16,12 @@ class CoinDetectorApp {
     this.currentImageB64 = null;
     this.lastCoins = [];
     this.lastSummary = null;
+    this.lastDetectionData = null;
     this.audioContext = null;
     this.soundEnabled = true;
     this.lastCoinCount = 0;
     this.referenceCoinIndex = null;
+    this.isAnimating = false;
 
     // DOM Elements
     this.initElements();
@@ -27,7 +29,7 @@ class CoinDetectorApp {
     this.loadCameraDevices();
     this.initAudio();
 
-    // Auto-load Real User Sample initially so user sees immediate accurate results
+    // Auto-load Real User Sample initially with smooth animation
     this.loadSample("sample_real_user.jpg");
   }
 
@@ -36,11 +38,15 @@ class CoinDetectorApp {
     this.canvasFeed = document.getElementById("canvasFeed");
     this.ctx = this.canvasFeed.getContext("2d");
     this.feedPlaceholder = document.getElementById("feedPlaceholder");
+    this.scanOverlay = document.getElementById("scanOverlay");
+    this.cvStatusTicker = document.getElementById("cvStatusTicker");
+    this.tickerText = document.getElementById("tickerText");
 
-    // Camera Controls
+    // Camera & Action Controls
     this.btnStartCam = document.getElementById("btnStartCam");
     this.btnStopCam = document.getElementById("btnStopCam");
     this.btnSnapshot = document.getElementById("btnSnapshot");
+    this.btnReplayAnim = document.getElementById("btnReplayAnim");
     this.cameraSelect = document.getElementById("cameraSelect");
 
     // Upload & Samples
@@ -92,11 +98,11 @@ class CoinDetectorApp {
       window.AudioContext = window.AudioContext || window.webkitAudioContext;
       this.audioContext = new AudioContext();
     } catch (e) {
-      console.warn("Web Audio API not supported in this browser:", e);
+      console.warn("Web Audio API not supported:", e);
     }
   }
 
-  playCoinChime() {
+  playCoinChime(frequency = 880, duration = 0.20) {
     if (!this.soundEnabled || !this.audioContext) return;
     try {
       if (this.audioContext.state === "suspended") {
@@ -106,19 +112,19 @@ class CoinDetectorApp {
       const gain = this.audioContext.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(880, this.audioContext.currentTime); // A5
-      osc.frequency.exponentialRampToValueAtTime(1760, this.audioContext.currentTime + 0.12);
+      osc.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(frequency * 1.5, this.audioContext.currentTime + duration * 0.5);
 
       gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.25);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
 
       osc.connect(gain);
       gain.connect(this.audioContext.destination);
 
       osc.start();
-      osc.stop(this.audioContext.currentTime + 0.25);
+      osc.stop(this.audioContext.currentTime + duration);
     } catch (e) {
-      // Audio playback blocked by policy until user interaction
+      // Audio playback blocked until user gesture
     }
   }
 
@@ -141,6 +147,15 @@ class CoinDetectorApp {
         this.startWebcam(this.cameraSelect.value);
       }
     });
+
+    // Replay Animation Button
+    if (this.btnReplayAnim) {
+      this.btnReplayAnim.addEventListener("click", () => {
+        if (this.lastDetectionData) {
+          this.playDetectionAnimation(this.lastDetectionData);
+        }
+      });
+    }
 
     // Upload & Dropzone
     this.dropzone.addEventListener("click", () => this.fileInput.click());
@@ -170,28 +185,30 @@ class CoinDetectorApp {
       }
     });
 
-    // Quick Sample Buttons
+    // Quick Sample Buttons with Active State & Safe Stop
     document.querySelectorAll(".sample-pill").forEach(pill => {
       pill.addEventListener("click", () => {
+        document.querySelectorAll(".sample-pill").forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
         this.loadSample(pill.dataset.file);
       });
     });
 
     // Sliders Real-Time Update
-    const bindSlider = (slider, display, key) => {
+    const bindSlider = (slider, display) => {
       slider.addEventListener("input", () => {
         display.textContent = slider.value;
-        this.referenceCoinIndex = null; // Reset manual click calibration
+        this.referenceCoinIndex = null;
         if (!this.isStreaming && this.currentImageB64) {
           this.reprocessCurrentImage();
         }
       });
     };
 
-    bindSlider(this.sliderParam2, this.valParam2, "hough_param2");
-    bindSlider(this.sliderMinR, this.valMinR, "min_radius");
-    bindSlider(this.sliderMaxR, this.valMaxR, "max_radius");
-    bindSlider(this.sliderCanny, this.valCanny, "canny_high");
+    bindSlider(this.sliderParam2, this.valParam2);
+    bindSlider(this.sliderMinR, this.valMinR);
+    bindSlider(this.sliderMaxR, this.valMaxR);
+    bindSlider(this.sliderCanny, this.valCanny);
 
     this.methodSelect.addEventListener("change", () => {
       if (!this.isStreaming && this.currentImageB64) {
@@ -217,7 +234,7 @@ class CoinDetectorApp {
       });
     }
 
-    // Interactive Click on Canvas to Calibrate Reference Coin
+    // Canvas Click Calibration
     this.canvasFeed.addEventListener("click", (e) => this.handleCanvasClick(e));
 
     // Export Buttons
@@ -280,7 +297,6 @@ class CoinDetectorApp {
       this.uploadContainer.style.display = "none";
       this.feedContainer.style.display = "flex";
       this.feedPlaceholder.style.display = "none";
-      // Point image directly to backend stream
       const img = new Image();
       img.src = "/video_feed";
       img.onload = () => {
@@ -311,10 +327,7 @@ class CoinDetectorApp {
       this.btnStartCam.style.display = "none";
       this.btnStopCam.style.display = "inline-flex";
 
-      // Re-enumerate to get labeled device names
       this.loadCameraDevices();
-
-      // Start processing loop
       this.requestFrameLoop();
     } catch (err) {
       console.error("Camera access error:", err);
@@ -348,12 +361,11 @@ class CoinDetectorApp {
   }
 
   async processWebcamFrame() {
-    if (!this.isStreaming || this.processingFrame) return;
+    if (!this.isStreaming || this.processingFrame || this.isAnimating) return;
     if (this.webcamVideo.videoWidth === 0 || this.webcamVideo.videoHeight === 0) return;
 
     this.processingFrame = true;
 
-    // Offscreen canvas for frame capture
     const offscreen = document.createElement("canvas");
     offscreen.width = this.webcamVideo.videoWidth;
     offscreen.height = this.webcamVideo.videoHeight;
@@ -375,8 +387,8 @@ class CoinDetectorApp {
       });
 
       const data = await response.json();
-      if (data.success) {
-        this.renderDetectionResults(data);
+      if (data.success && this.isStreaming) {
+        this.renderInstantResults(data);
       }
     } catch (e) {
       console.error("Frame processing error:", e);
@@ -387,7 +399,6 @@ class CoinDetectorApp {
 
   captureSnapshot() {
     if (!this.isStreaming) return;
-    // Pause stream and fetch high-resolution with all pipeline stages
     const offscreen = document.createElement("canvas");
     offscreen.width = this.webcamVideo.videoWidth;
     offscreen.height = this.webcamVideo.videoHeight;
@@ -399,7 +410,33 @@ class CoinDetectorApp {
     this.processSingleImage(frameBase64);
   }
 
+  async processSingleImage(frameBase64) {
+    this.showScanningAnimation(true, "🔍 Ingesting frame & computing OpenCV pipeline...");
+    try {
+      const response = await fetch("/api/process_frame", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frame: frameBase64,
+          params: this.getCVParameters(),
+          include_stages: true,
+          include_montage: true
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        this.playDetectionAnimation(data);
+      }
+    } catch (e) {
+      console.error("Single image error:", e);
+    }
+  }
+
   async handleFileUpload(file) {
+    // Stop live stream so webcam loop doesn't overwrite uploaded image
+    this.stopWebcam();
+    this.showScanningAnimation(true, "📥 Uploading image & initializing OpenCV filters...");
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("params", JSON.stringify(this.getCVParameters()));
@@ -413,31 +450,42 @@ class CoinDetectorApp {
       });
       const data = await response.json();
       if (data.success) {
-        this.renderDetectionResults(data);
+        this.playDetectionAnimation(data);
       } else {
+        this.showScanningAnimation(false);
         alert("Detection error: " + (data.error || "Unknown error"));
       }
     } catch (e) {
+      this.showScanningAnimation(false);
       console.error("Upload error:", e);
       alert("Failed to upload image.");
     }
   }
 
   async loadSample(filename) {
+    // CRITICAL: Stop live webcam so it doesn't immediately overwrite the loaded sample
+    this.stopWebcam();
+    this.showScanningAnimation(true, `🔍 Loading ${filename} into OpenCV engine...`);
+
     try {
       const params = this.getCVParameters();
       const response = await fetch(`/api/sample/${filename}?method=${params.method}`);
       const data = await response.json();
       if (data.success) {
-        this.renderDetectionResults(data);
+        this.playDetectionAnimation(data);
+      } else {
+        this.showScanningAnimation(false);
+        alert("Error loading sample: " + data.error);
       }
     } catch (e) {
+      this.showScanningAnimation(false);
       console.error("Error loading sample:", e);
     }
   }
 
   async reprocessCurrentImage() {
     if (!this.currentImageB64) return;
+    this.showScanningAnimation(true, "⚙️ Reprocessing with updated parameters...");
     try {
       const response = await fetch("/api/process_frame", {
         method: "POST",
@@ -451,14 +499,219 @@ class CoinDetectorApp {
       });
       const data = await response.json();
       if (data.success) {
-        this.renderDetectionResults(data);
+        this.playDetectionAnimation(data);
       }
     } catch (e) {
+      this.showScanningAnimation(false);
       console.error("Reprocess error:", e);
     }
   }
 
-  renderDetectionResults(data) {
+  showScanningAnimation(show, message = "") {
+    if (this.scanOverlay) {
+      this.scanOverlay.style.display = show ? "block" : "none";
+    }
+    if (this.cvStatusTicker) {
+      this.cvStatusTicker.style.display = show ? "flex" : "none";
+      if (this.tickerText && message) {
+        this.tickerText.textContent = message;
+      }
+    }
+  }
+
+  /**
+   * High-Tech Progressive Computer Vision Animation:
+   * 1. Displays original frame with laser scanning beam.
+   * 2. Shows background normalization & edge detection.
+   * 3. Locks onto each detected coin one by one with glowing targeting circles.
+   * 4. Pops up denomination pills with sound chimes.
+   * 5. Smoothly animates the monetary totals up to final sum.
+   */
+  async playDetectionAnimation(data) {
+    this.isAnimating = true;
+    this.lastDetectionData = data;
+    this.feedPlaceholder.style.display = "none";
+    this.lastCoins = data.coins || [];
+    this.lastSummary = data.summary || {};
+    this.lastMontageB64 = data.montage_image || null;
+    this.currentImageB64 = data.annotated_image;
+
+    // Load original image to canvas
+    const rawImageSrc = (data.stages && data.stages.original) || data.annotated_image;
+    const rawImg = new Image();
+    await new Promise((resolve) => {
+      rawImg.onload = resolve;
+      rawImg.src = rawImageSrc;
+    });
+
+    this.canvasFeed.width = rawImg.width;
+    this.canvasFeed.height = rawImg.height;
+
+    // Reset counters to zero
+    this.statTotalAmount.textContent = "₹0";
+    this.statCoinCount.textContent = "0";
+    this.statPpm.textContent = `${data.summary.pixels_per_mm || 0} px/mm`;
+    for (const countEl of Object.values(this.denomCounts)) {
+      if (countEl) countEl.textContent = "0";
+    }
+    this.coinsTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1rem;">Scanning in progress...</td></tr>`;
+
+    // Stage 1: Laser Scan & Illumination Normalization
+    this.showScanningAnimation(true, "🔍 Step 1/5: Ingesting Frame & Normalizing Illumination...");
+    this.ctx.drawImage(rawImg, 0, 0);
+    await new Promise(r => setTimeout(r, 450));
+
+    // Stage 2: Background Texture Removal
+    this.showScanningAnimation(true, "⚡ Step 2/5: Removing Background Texture (Wood Grain Suppressed)...");
+    if (data.stages && data.stages.normalized) {
+      const normImg = new Image();
+      normImg.src = data.stages.normalized;
+      await new Promise(resolve => { normImg.onload = resolve; });
+      this.ctx.drawImage(normImg, 0, 0);
+    }
+    await new Promise(r => setTimeout(r, 450));
+
+    // Return to base image for locking onto coins
+    this.ctx.drawImage(rawImg, 0, 0);
+
+    // Stage 3 & 4: Progressive Coin Detection & Lock-On
+    this.showScanningAnimation(true, "⭕ Step 3/5: Detecting Circular Rims & Verifying Edge Coherence...");
+    await new Promise(r => setTimeout(r, 350));
+
+    let runningTotal = 0;
+    const runningBreakdown = { 1: 0, 2: 0, 5: 0, 10: 0, 20: 0 };
+    const revealedCoins = [];
+
+    for (let i = 0; i < this.lastCoins.length; i++) {
+      const coin = this.lastCoins[i];
+      revealedCoins.push(coin);
+      runningTotal += coin.denomination;
+      runningBreakdown[coin.denomination] = (runningBreakdown[coin.denomination] || 0) + 1;
+
+      // Update Ticker
+      this.showScanningAnimation(
+        true,
+        `🎯 Step 4/5: Identified Coin #${coin.id} (${coin.denomination_str}, ${coin.color_tone}, ${coin.diameter_mm}mm)`
+      );
+
+      // Play audio chime corresponding to denomination
+      const freqMap = { 1: 650, 2: 780, 5: 980, 10: 1250, 20: 1450 };
+      this.playCoinChime(freqMap[coin.denomination] || 880, 0.18);
+
+      // Draw all revealed coins up to this one
+      this.drawPartialAnnotatedCoins(rawImg, revealedCoins);
+
+      // Animate Stats
+      this.statTotalAmount.textContent = `₹${runningTotal}`;
+      this.statCoinCount.textContent = `${revealedCoins.length}`;
+      if (this.denomCounts[coin.denomination]) {
+        this.denomCounts[coin.denomination].textContent = runningBreakdown[coin.denomination];
+        const denomBox = this.denomCounts[coin.denomination].closest(".denom-box");
+        if (denomBox) {
+          denomBox.style.transform = "scale(1.15)";
+          setTimeout(() => { denomBox.style.transform = ""; }, 200);
+        }
+      }
+
+      this.statTotalAmount.closest(".stat-card")?.classList.add("pulse-highlight");
+      setTimeout(() => {
+        this.statTotalAmount.closest(".stat-card")?.classList.remove("pulse-highlight");
+      }, 250);
+
+      // Render table progressively
+      this.renderCoinsTable(revealedCoins);
+
+      await new Promise(r => setTimeout(r, 260));
+    }
+
+    // Stage 5: Final Annotated Frame & Summary
+    const finalImg = new Image();
+    finalImg.src = data.annotated_image;
+    await new Promise(resolve => { finalImg.onload = resolve; });
+    this.ctx.drawImage(finalImg, 0, 0);
+
+    // Final Ticker Message
+    this.showScanningAnimation(
+      true,
+      `✅ Complete: ${data.summary.total_count} Coins Detected | Total Amount: ₹${data.summary.total_amount}`
+    );
+    if (this.cvStatusTicker) {
+      const spinner = this.cvStatusTicker.querySelector(".spinner");
+      if (spinner) spinner.style.display = "none";
+    }
+
+    // Render Final Stages in inspector
+    if (data.stages) {
+      this.renderPipelineStages(data.stages, data.annotated_image);
+    }
+
+    setTimeout(() => {
+      this.showScanningAnimation(false);
+      if (this.cvStatusTicker) {
+        const spinner = this.cvStatusTicker.querySelector(".spinner");
+        if (spinner) spinner.style.display = "inline-block";
+      }
+      this.isAnimating = false;
+    }, 2800);
+  }
+
+  drawPartialAnnotatedCoins(baseImg, coins) {
+    this.ctx.drawImage(baseImg, 0, 0);
+
+    coins.forEach(coin => {
+      const cx = coin.center[0];
+      const cy = coin.center[1];
+      const r = coin.radius;
+      const colorHex = coin.display_color_hex || "#00e5ff";
+
+      // 1. Outer Glow
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, r + 2, 0, 2 * Math.PI);
+      this.ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      this.ctx.lineWidth = 1.5;
+      this.ctx.stroke();
+
+      // 2. Primary Ring
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+      this.ctx.strokeStyle = colorHex;
+      this.ctx.lineWidth = 3.5;
+      this.ctx.shadowColor = colorHex;
+      this.ctx.shadowBlur = 12;
+      this.ctx.stroke();
+
+      // 3. Center Crosshair
+      this.ctx.beginPath();
+      this.ctx.arc(cx, cy, 3, 0, 2 * Math.PI);
+      this.ctx.fillStyle = "#ff0055";
+      this.ctx.fill();
+
+      // 4. Denomination Badge
+      const badgeW = 76;
+      const badgeH = 26;
+      let bx = cx - badgeW / 2;
+      let by = cy - r - badgeH - 6;
+      if (by < 5) by = cy - badgeH / 2;
+
+      this.ctx.fillStyle = "rgba(15, 20, 28, 0.92)";
+      this.ctx.strokeStyle = colorHex;
+      this.ctx.lineWidth = 1.5;
+      this.ctx.beginPath();
+      this.ctx.roundRect ? this.ctx.roundRect(bx, by, badgeW, badgeH, 6) : this.ctx.rect(bx, by, badgeW, badgeH);
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = "bold 13px -apple-system, sans-serif";
+      this.ctx.textAlign = "center";
+      this.ctx.fillText(`${coin.denomination_str}`, cx, by + 18);
+
+      this.ctx.restore();
+    });
+  }
+
+  renderInstantResults(data) {
     this.feedPlaceholder.style.display = "none";
     this.lastCoins = data.coins || [];
     this.lastSummary = data.summary || {};
@@ -475,33 +728,22 @@ class CoinDetectorApp {
       img.src = data.annotated_image;
     }
 
-    // Play chime when new coins appear
     const currentCount = data.summary.total_count || 0;
     if (currentCount > this.lastCoinCount && currentCount > 0) {
       this.playCoinChime();
     }
     this.lastCoinCount = currentCount;
 
-    // Update Stats Card
     this.statTotalAmount.textContent = `₹${data.summary.total_amount || 0}`;
     this.statCoinCount.textContent = `${currentCount}`;
     this.statPpm.textContent = `${data.summary.pixels_per_mm || 0} px/mm`;
 
-    // Update Denomination Counts
     const breakdown = data.summary.breakdown || {};
     for (const [denom, countEl] of Object.entries(this.denomCounts)) {
-      if (countEl) {
-        countEl.textContent = breakdown[denom] || 0;
-      }
+      if (countEl) countEl.textContent = breakdown[denom] || 0;
     }
 
-    // Update Table
     this.renderCoinsTable(this.lastCoins);
-
-    // Update Pipeline Stages
-    if (data.stages) {
-      this.renderPipelineStages(data.stages, data.annotated_image);
-    }
   }
 
   renderCoinsTable(coins) {
@@ -529,7 +771,7 @@ class CoinDetectorApp {
         <td style="font-weight:600; color:var(--accent-cyan);">${coin.diameter_mm} mm</td>
         <td>${coin.color_tone}</td>
         <td>
-          <button class="coin-badge-btn" data-coin-idx="${idx}" style="background-color:${coin.display_color_hex || denomColors[coin.denomination] || '#00e5ff'}; border:none; border-radius:4px; padding:0.2rem 0.55rem; color:#fff; font-weight:700; cursor:pointer;" title="Click to change denomination">
+          <button class="coin-badge-btn" data-coin-idx="${idx}" style="background-color:${coin.display_color_hex || denomColors[coin.denomination] || '#00e5ff'}; border:none; border-radius:4px; padding:0.2rem 0.55rem; color:#fff; font-weight:700; cursor:pointer;" title="Click to cycle denomination">
             ${coin.denomination_str || ('₹' + coin.denomination)}
           </button>
         </td>
@@ -542,7 +784,6 @@ class CoinDetectorApp {
       this.coinsTableBody.appendChild(tr);
     });
 
-    // Event listener for manual denomination toggle
     this.coinsTableBody.querySelectorAll(".coin-badge-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
         const coinIdx = parseInt(e.target.dataset.coinIdx, 10);
@@ -555,7 +796,6 @@ class CoinDetectorApp {
           this.lastCoins[coinIdx].denomination_str = `₹${nextDenom}`;
           this.lastCoins[coinIdx].display_color_hex = denomColors[nextDenom];
 
-          // Recalculate summary totals
           let newTotal = 0;
           const newBreakdown = { 1: 0, 2: 0, 5: 0, 10: 0, 20: 0 };
           this.lastCoins.forEach(c => {
@@ -579,7 +819,7 @@ class CoinDetectorApp {
 
   renderPipelineStages(stages, annotatedB64) {
     if (stages.original && this.stageOriginal) this.stageOriginal.src = stages.original;
-    if (stages.enhanced && this.stageGrayscale) this.stageGrayscale.src = stages.enhanced;
+    if (stages.normalized && this.stageGrayscale) this.stageGrayscale.src = stages.normalized;
     if (stages.blurred && this.stageBlurred) this.stageBlurred.src = stages.blurred;
     if (stages.edges && this.stageEdges) this.stageEdges.src = stages.edges;
     if (stages.distance_transform && this.stageDistance) this.stageDistance.src = stages.distance_transform;
@@ -596,7 +836,6 @@ class CoinDetectorApp {
     const clickX = (event.clientX - rect.left) * scaleX;
     const clickY = (event.clientY - rect.top) * scaleY;
 
-    // Find clicked coin
     let clickedCoinIndex = -1;
     for (let i = 0; i < this.lastCoins.length; i++) {
       const c = this.lastCoins[i];
@@ -657,7 +896,6 @@ class CoinDetectorApp {
   }
 }
 
-// Instantiate on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", () => {
   window.coinApp = new CoinDetectorApp();
 });
