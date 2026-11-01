@@ -249,8 +249,10 @@ def video_feed():
     )
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     print("=" * 60)
     print(" Automated Coin Detection and Counting Using OpenCV")
-    print(" Starting server on http://127.0.0.1:5000")
+    print(f" Starting server on http://0.0.0.0:{port}")
     print("=" * 60)
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=debug)
