@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automated Coin Detection and Counting Using OpenCV</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-icon">₹</div>
+      <div class="brand-titles">
+        <h1>CoinDetector CV</h1>
+        <p>Computer Vision &bull; Indian Rupee (INR) Detection &amp; Counting</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="badge-status">
+        <span class="pulse-dot"></span>
+        <span>OpenCV 4.x Engine Active</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Wrapper -->
+  <main class="main-wrapper">
+
+    <!-- Top Mode Selector Tabs -->
+    <nav class="tabs-navigation">
+      <button class="nav-tab active" data-mode="webcam">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        Live Webcam
+      </button>
+      <button class="nav-tab" data-mode="upload">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Photo
+      </button>
+      <button class="nav-tab" data-mode="backend">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Backend Camera Stream
+      </button>
+    </nav>
+
+    <!-- Two-Column Primary Grid -->
+    <div class="dashboard-grid">
+
+      <!-- LEFT COLUMN: Video / Image Viewport -->
+      <section class="viewport-card">
+        <div class="viewport-header">
+          <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+            Interactive Camera &amp; Viewport
+          </h2>
+          <select id="cameraSelect" class="select-input" title="Select Video Device">
+            <option value="">Default Web Camera</option>
+          </select>
+        </div>
+
+        <!-- Hidden Video Element for getUserMedia stream capture -->
+        <video id="webcamVideo" autoplay playsinline muted></video>
+
+        <!-- Main Display Canvas -->
+        <div class="feed-container" id="feedContainer">
+          <canvas id="canvasFeed"></canvas>
+          <div class="feed-placeholder" id="feedPlaceholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>
+            <p>Click <strong>Start Camera</strong> or select a <strong>Sample Image</strong> below to begin real-time detection.</p>
+          </div>
+        </div>
+
+        <!-- Upload Dropzone (Visible in Upload Mode) -->
+        <div id="uploadContainer" style="display: none;">
+          <input type="file" id="fileInput" accept="image/*" style="display: none;">
+          <div class="upload-dropzone" id="dropzone">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p style="margin-top: 0.5rem; font-weight:600;">Drag &amp; drop an image file here, or click to browse</p>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Supports JPG, PNG, WEBP, BMP up to 16MB</span>
+          </div>
+        </div>
+
+        <!-- Viewport Control Buttons -->
+        <div class="viewport-controls">
+          <div class="btn-group">
+            <button id="btnStartCam" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Camera
+            </button>
+            <button id="btnStopCam" class="btn btn-danger" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+              Stop Camera
+            </button>
+            <button id="btnSnapshot" class="btn btn-outline" title="Capture Still Image and View Pipeline Stages">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Capture Still
+            </button>
+          </div>
+
+          <!-- Quick Samples Bar -->
+          <div class="sample-bar">
+            <span>Quick Samples:</span>
+            <div class="sample-pills">
+              <button class="sample-pill" data-file="sample_mix.jpg">Sample 1: ₹33 Mixed</button>
+              <button class="sample-pill" data-file="sample_scattered.jpg">Sample 2: ₹37 Scattered</button>
+              <button class="sample-pill" data-file="sample_touching.jpg">Sample 3: ₹23 Touching (Watershed)</button>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:-0.25rem;">
+          💡 <em>Tip: Click on any detected coin on the screen to calibrate scale against that coin!</em>
+        </p>
+      </section>
+
+      <!-- RIGHT COLUMN: Analytics, Denominations & Controls -->
+      <section class="analytics-column">
+
+        <!-- Highlight Stat Cards Banner -->
+        <div class="stats-banner">
+          <div class="stat-card primary">
+            <span class="stat-label">Total Amount</span>
+            <span class="stat-value" id="statTotalAmount">₹0</span>
+            <span class="stat-sub">Sum of all detected coins</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Coins Detected</span>
+            <span class="stat-value" id="statCoinCount">0</span>
+            <span class="stat-sub">Total circle count</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Scale Factor</span>
+            <span class="stat-value" id="statPpm" style="font-size:1.4rem;">--</span>
+            <span class="stat-sub">Pixels per millimeter</span>
+          </div>
+        </div>
+
+        <!-- Denomination Breakdown Card -->
+        <div class="denominations-card">
+          <div class="card-title">
+            <span>Denomination Breakdown</span>
+            <label style="font-size:0.78rem; display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+              <input type="checkbox" id="soundToggle" checked>
+              <span>Sound Chime</span>
+            </label>
+          </div>
+          <div class="denom-grid">
+            <div class="denom-box denom-1">
+              <div class="denom-name">₹1</div>
+              <div class="denom-count" id="count-1">0</div>
+              <div class="denom-subtotal">20 mm</div>
+            </div>
+            <div class="denom-box denom-2">
+              <div class="denom-name">₹2</div>
+              <div class="denom-count" id="count-2">0</div>
+              <div class="denom-subtotal">25 mm</div>
+            </div>
+            <div class="denom-box denom-5">
+              <div class="denom-name">₹5</div>
+              <div class="denom-count" id="count-5">0</div>
+              <div class="denom-subtotal">23 mm (Gold)</div>
+            </div>
+            <div class="denom-box denom-10">
+              <div class="denom-name">₹10</div>
+              <div class="denom-count" id="count-10">0</div>
+              <div class="denom-subtotal">27 mm (Bimetal)</div>
+            </div>
+            <div class="denom-box denom-20">
+              <div class="denom-name">₹20</div>
+              <div class="denom-count" id="count-20">0</div>
+              <div class="denom-subtotal">27 mm (12-Side)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detected Coins Itemized Table -->
+        <div class="table-card">
+          <div class="card-title">
+            <span>Detected Coins Itemization</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="coins-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Center (X, Y)</th>
+                  <th>Radius</th>
+                  <th>Diameter</th>
+                  <th>Tone</th>
+                  <th>Value</th>
+                  <th>Conf</th>
+                </tr>
+              </thead>
+              <tbody id="coinsTableBody">
+                <tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No coins detected in current frame</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Parameter Tuning & Calibration Panel -->
+        <div class="controls-card">
+          <div class="card-title">
+            <span>OpenCV Detection &amp; Calibration Controls</span>
+          </div>
+          <div class="tuning-grid">
+            <!-- Detection Method -->
+            <div class="control-group">
+              <label class="control-label">
+                <span>Method</span>
+              </label>
+              <select id="methodSelect" class="select-input">
+                <option value="hybrid" selected>Hybrid Ensemble (Recommended)</option>
+                <option value="hough">Hough Circle Transform</option>
+                <option value="contour">Contour &amp; Watershed</option>
+              </select>
+            </div>
+
+            <!-- Calibration Scale Mode -->
+            <div class="control-group">
+              <label class="control-label">
+                <span>Calibration Mode</span>
+              </label>
+              <select id="calibModeSelect" class="select-input">
+                <option value="auto" selected>Auto Relative Clustering</option>
+                <option value="reference_coin">Anchor to Reference Coin</option>
+              </select>
+            </div>
+
+            <!-- Reference Denomination -->
+            <div class="control-group">
+              <label class="control-label">
+                <span>Reference Coin</span>
+              </label>
+              <select id="refDenomSelect" class="select-input">
+                <option value="10" selected>₹10 Coin (27.0 mm)</option>
+                <option value="5">₹5 Coin (23.0 mm)</option>
+                <option value="2">₹2 Coin (25.0 mm)</option>
+                <option value="1">₹1 Coin (20.0 mm)</option>
+              </select>
+            </div>
+
+            <!-- Hough Param2 (Accumulator threshold) -->
+            <div class="control-group">
+              <div class="control-label">
+                <span>Sensitivity (Param2)</span>
+                <span id="valParam2">38</span>
+              </div>
+              <input type="range" id="sliderParam2" min="15" max="65" value="38" step="1">
+            </div>
+
+            <!-- Min Radius -->
+            <div class="control-group">
+              <div class="control-label">
+                <span>Min Radius (px)</span>
+                <span id="valMinR">20</span>
+              </div>
+              <input type="range" id="sliderMinR" min="10" max="60" value="20" step="1">
+            </div>
+
+            <!-- Max Radius -->
+            <div class="control-group">
+              <div class="control-label">
+                <span>Max Radius (px)</span>
+                <span id="valMaxR">95</span>
+              </div>
+              <input type="range" id="sliderMaxR" min="60" max="180" value="95" step="1">
+            </div>
+
+            <!-- Canny High Threshold -->
+            <div class="control-group" style="grid-column: span 2;">
+              <div class="control-label">
+                <span>Canny Edge High Threshold</span>
+                <span id="valCanny">110</span>
+              </div>
+              <input type="range" id="sliderCanny" min="40" max="220" value="110" step="5">
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Export Buttons -->
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+          <button id="btnDownloadImage" class="btn btn-outline" style="flex:1;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Image
+          </button>
+          <button id="btnDownloadMontage" class="btn btn-outline" style="flex:1;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            Download Montage
+          </button>
+          <button id="btnExportCsv" class="btn btn-outline" style="flex:1;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Export CSV
+          </button>
+          <button id="btnPrintReport" class="btn btn-outline" style="flex:1;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Report
+          </button>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- CV PIPELINE STAGES INSPECTOR (ACADEMIC VIVA / DEMO SECTION) -->
+    <section class="pipeline-section">
+      <div class="pipeline-header">
+        <div>
+          <h2 style="font-size:1.2rem; font-weight:700;">Computer Vision Pipeline Inspector</h2>
+          <p style="font-size:0.82rem; color:var(--text-muted);">Step-by-step image processing transformations from raw sensor capture to coin classification.</p>
+        </div>
+      </div>
+
+      <div class="pipeline-grid">
+        <!-- Stage 1 -->
+        <div class="pipeline-card">
+          <div class="pipeline-card-title">1. Original Capture</div>
+          <div class="pipeline-img-container">
+            <img id="stageOriginal" src="/static/samples/sample_mix.jpg" alt="Stage 1: Original">
+          </div>
+          <div class="pipeline-desc">
+            <strong>Input RGB Sensor:</strong> High-resolution frame captured from webcam or camera sensor under ambient lighting.
+          </div>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="pipeline-card">
+          <div class="pipeline-card-title">2. Grayscale &amp; CLAHE</div>
+          <div class="pipeline-img-container">
+            <img id="stageGrayscale" src="" alt="Stage 2: Grayscale &amp; CLAHE">
+          </div>
+          <div class="pipeline-desc">
+            <strong>Contrast Normalization:</strong> <code>cv2.cvtColor</code> + Contrast Limited Adaptive Histogram Equalization (CLAHE) reduces shadow variance across coin faces.
+          </div>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="pipeline-card">
+          <div class="pipeline-card-title">3. Bilateral &amp; Gaussian Smoothing</div>
+          <div class="pipeline-img-container">
+            <img id="stageBlurred" src="" alt="Stage 3: Smoothing">
+          </div>
+          <div class="pipeline-desc">
+            <strong>Noise Suppression:</strong> Edge-preserving Bilateral Filter removes high-frequency surface noise while keeping the outer circular coin rims sharp.
+          </div>
+        </div>
+
+        <!-- Stage 4 -->
+        <div class="pipeline-card">
+          <div class="pipeline-card-title">4. Canny Edge Detection</div>
+          <div class="pipeline-img-container">
+            <img id="stageEdges" src="" alt="Stage 4: Canny Edges">
+          </div>
+          <div class="pipeline-desc">
+            <strong>Gradient Vector Estimation:</strong> Dual-threshold hysteresis (<code>cv2.Canny</code>) isolates closed circular boundaries and suppresses spurious background gradients.
+          </div>
+        </div>
+
+        <!-- Stage 5 -->
+        <div class="pipeline-card">
+          <div class="pipeline-card-title">5. Distance Transform &amp; Watershed</div>
+          <div class="pipeline-img-container">
+            <img id="stageDistance" src="" alt="Stage 5: Watershed &amp; Distance Transform">
+          </div>
+          <div class="pipeline-desc">
+            <strong>Cluster Separation:</strong> Euclidean distance transform (<code>cv2.distanceTransform</code>) calculates peaks of clustered coins to separate touching edges.
+          </div>
+        </div>
+
+        <!-- Stage 6 -->
+        <div class="pipeline-card">
+          <div class="pipeline-card-title">6. Detection &amp; Classification</div>
+          <div class="pipeline-img-container">
+            <img id="stageFinal" src="" alt="Stage 6: Final Result">
+          </div>
+          <div class="pipeline-desc">
+            <strong>Multimodal Reasoning:</strong> Combines Hough gradient voting, minimum enclosing circles, HSV color tone inspection, and physical diameter ratios.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div>
+      <strong>Course Project:</strong> Automated Coin Detection and Counting Using OpenCV
+    </div>
+    <div>
+      GitHub Repository: <a href="https://github.com/AkulTyagi11/CoinDetector_CV_Project" target="_blank" rel="noopener">AkulTyagi11/CoinDetector_CV_Project</a>
+    </div>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
