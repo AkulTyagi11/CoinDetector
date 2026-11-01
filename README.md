@@ -1,9 +1,13 @@
 # Automated Coin Detection and Counting Using OpenCV 🪙
 
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-brightgreen.svg)](https://coin-detector-cv.onrender.com)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![OpenCV 4.x](https://img.shields.io/badge/OpenCV-4.x-green.svg)](https://opencv.org/)
 [![Flask 3.x](https://img.shields.io/badge/Flask-3.x-black.svg)](https://palletsprojects.com/p/flask/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> 🌐 **Live Web Application:** [**https://coin-detector-cv.onrender.com**](https://coin-detector-cv.onrender.com)  
+> (Accessible directly from any smartphone, tablet, or PC with full live webcam support over HTTPS)
 
 An end-to-end Computer Vision system that **detects, classifies, counts, and calculates the total monetary amount** of coins in real time using **OpenCV** and **Python**.
 
